@@ -15,7 +15,7 @@
 #ifndef GB_MONOREPO_IO_H
 #define GB_MONOREPO_IO_H
 
-#include "stdint.h"
+#include <stdint.h>
 #include "gberror.h"
 
 

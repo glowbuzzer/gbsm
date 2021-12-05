@@ -1,4 +1,4 @@
-f/**
+/**
  ******************************************************************************
  * @file           :  io.c
  * @brief          :  handles the configuration and read and write of PI gpio io
