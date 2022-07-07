@@ -22,14 +22,17 @@
 /** sm event data (passed in with each call to execute the state machine ) */
 typedef struct {
     bool follow_error;
-    bool machine_request_error; //bit 6 of machine controlword
+    bool machine_request_error; //bit 16 of machine controlword
+    bool machine_move_not_op_enabled_fault_req; //bit 17 of machine controlword
+    bool gbc_internal_fault;
     bool estop;
     bool heartbeat_lost;
+    bool any_drive_has_alarm;
     bool internal_limit;
+    bool remote_ok;
     bool slave_reported_error;
     bool plc_signalled_error;
     bool homing_failed;
-    bool remote_ok;
     uint32_t fault_cause;
 } step_event_data_t;
 

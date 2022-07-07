@@ -1,6 +1,6 @@
 /**
  ******************************************************************************
- * @file           : control.c
+ * @file           : step_control.c
  * @brief          : main control functions - runs drive state machine
  ******************************************************************************
  * @attention
@@ -38,11 +38,13 @@ cia_state_t current_state = CIA_NOT_READY_TO_SWITCH_ON;
 
 bool homing_failed = false;
 
-#define NUM_CONTROL_EVENTS 15
+#define NUM_CONTROL_EVENTS 16
 typedef enum {
     CONTROL_EVENT_ESTOP,
     CONTROL_EVENT_DRIVE_FAULT,
     CONTROL_EVENT_GBC_FAULT_REQUEST,
+    CONTROL_EVENT_GBC_MOVE_NOT_OP_END_REQUEST,
+    CONTROL_EVENT_GBC_INTERNAL_FAULT,
     CONTROL_EVENT_HEARTBEAT_LOST,
     CONTROL_EVENT_LIMIT_REACHED,
     CONTROL_EVENT_DRIVE_STATE_CHANGE_TIMEOUT,
@@ -62,6 +64,8 @@ cyclic_event_t control_event[NUM_CONTROL_EVENTS] = {
         [CONTROL_EVENT_ESTOP] = {.message="An error has been detected [ESTOP event]", .type=CYCLIC_MSG_ERROR},
         [CONTROL_EVENT_DRIVE_FAULT] = {.message="An error has been detected [Drive fault]", .type=CYCLIC_MSG_ERROR},
         [CONTROL_EVENT_GBC_FAULT_REQUEST] = {.message="An error has been detected [GBC requesting fault state]", .type=CYCLIC_MSG_ERROR},
+        [CONTROL_EVENT_GBC_MOVE_NOT_OP_END_REQUEST] = {.message="An error has been detected [Move when not in op en]", .type=CYCLIC_MSG_ERROR},
+        [CONTROL_EVENT_GBC_INTERNAL_FAULT] = {.message="An error has been detected [GBC internal fault]", .type=CYCLIC_MSG_ERROR},
         [CONTROL_EVENT_HEARTBEAT_LOST] = {.message="An error has been detected [Heartbeat to GBC lost]", .type=CYCLIC_MSG_ERROR},
         [CONTROL_EVENT_LIMIT_REACHED] = {.message="An error has been detected [Drive reached limit]", .type=CYCLIC_MSG_ERROR},
         [CONTROL_EVENT_DRIVE_STATE_CHANGE_TIMEOUT] = {.message="An error has been detected [Drive state change timeout]", .type=CYCLIC_MSG_ERROR},
@@ -792,6 +796,21 @@ bool cia_is_fault_condition(struct event *event) {
         control_event[CONTROL_EVENT_GBC_FAULT_REQUEST].active = true;
         have_fault = true;
     }
+    if (((step_event_data_t *) event->data)->machine_move_not_op_enabled_fault_req == true) {
+        LL_TRACE(GBSM_SM_LOG_EN, "sm: Fault > machine word is requesting an error because a move has been attempted and we are not in operation enabled");
+        BIT_SET(((step_event_data_t *) event->data)->fault_cause, FAULT_CAUSE_MOVE_NOT_OP_EN_BIT_NUM);
+        control_event[CONTROL_EVENT_GBC_MOVE_NOT_OP_END_REQUEST].active = true;
+        have_fault = true;
+    }
+//    CTRL_GBC_INTERNAL_FAULT_REQ_BIT_NUM
+
+    if (((step_event_data_t *) event->data)->gbc_internal_fault == true) {
+        LL_TRACE(GBSM_SM_LOG_EN, "sm: Fault > machine word is signalling GBC had an internal fault");
+        BIT_SET(((step_event_data_t *) event->data)->fault_cause, FAULT_CAUSE_GBC_INTERNAL_ERROR_BIT_NUM);
+        control_event[CONTROL_EVENT_GBC_MOVE_NOT_OP_END_REQUEST].active = true;
+        have_fault = true;
+    }
+
     if (step_ctrl_check_any_drives_state(CIA_FAULT_REACTION_ACTIVE)) {
         LL_TRACE(GBSM_SM_LOG_EN, "sm: Fault > one or more drives are in FAULT REACTION ACTIVE");
         BIT_SET(((step_event_data_t *) event->data)->fault_cause, FAULT_CAUSE_DRIVE_FAULT_BIT_NUM);
@@ -912,7 +931,7 @@ static bool cia_trn13_guard(void *condition, struct event *event) {
         case CIA_QUICK_STOP:
             if ((((cia_state_t) ((intptr_t *) condition) != CIA_QUICK_STOP_ACTIVE) ||
                  ((cia_state_t) ((intptr_t *) condition) != CIA_SWITCH_ON_DISABLED)) &&
-                    step_ctrl_state_change_cycle_count > step_ctrl_state_change_timeout) {
+                step_ctrl_state_change_cycle_count > step_ctrl_state_change_timeout) {
                 state_mismatch = true;
             }
             break;
@@ -927,6 +946,8 @@ static bool cia_trn13_guard(void *condition, struct event *event) {
                 (step_ctrl_state_change_cycle_count > step_ctrl_state_change_timeout)) {
                 state_mismatch = true;
             }
+            break;
+        case CIA_FAULT_RESET:
             break;
     }
     if (state_mismatch) {
@@ -1043,7 +1064,7 @@ void step_ctrl_change_all_drives_states(uint16_t controlword) {
     LL_TRACE(GBSM_SM_LOG_EN, "sm: Change All drives control word: %s",
              cia_command_names[cia_ctrlwrd_to_command(controlword)]);
 
-        drv_set_ctrl_wrd(controlword);
+    drv_set_ctrl_wrd(controlword);
 
 }
 
@@ -1301,7 +1322,7 @@ if (din[CTRL_ESTOP_RESET_DIN]){
 //    }
 
 
-        drv_update_state();
+    drv_update_state();
 
 
     /*	 run the state machine */

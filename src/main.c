@@ -33,6 +33,9 @@
 #include "command_line.h"
 #include "stepper_routines.h"
 
+int log_run_level = LOG_LEVEL;
+
+
 #define GBC_PROCESS_NAME_MAX_LENGTH                     100
 char proc_name[GBC_PROCESS_NAME_MAX_LENGTH] = {0};
 
@@ -279,6 +282,7 @@ int main(int argc, char *argv[]) {
 
     gberror_t grc = E_GENERAL_FAILURE;
     strcpy(proc_name, GBC_PROCESS_NAME);
+
 
     /* These set where the user message output will be sent. Uncomment the one you want.
      * This is just for user messages UM_* not logging LL_ which, if enabled, always goes to stdout

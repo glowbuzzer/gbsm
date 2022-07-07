@@ -18,6 +18,17 @@ file(GLOB SOURCES src/*.c src/tmc4361a_conf/*.c src/tmc5160_conf/*.c libs/TMC-AP
 
 configure_file(version/version.h.in version/version.h)
 
+#if (NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
+#    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
+#endif()
+
+if (NOT CMAKE_BUILD_TYPE)
+    message(STATUS "GB: No build type was provided, we will default to [Release]")
+    set(CMAKE_BUILD_TYPE "Release")
+else ()
+    message(STATUS "GB: CMAKE_BUILD_TYPE is [${CMAKE_BUILD_TYPE}]")
+endif ()
+
 
 # Find the path to the pigpio includes.
 find_path(pigpio_INCLUDE_DIR
@@ -57,7 +68,7 @@ message(STATUS "GB: CURRENT_SOURCE_DIR [${CMAKE_CURRENT_SOURCE_DIR} ]")
 
 add_executable(GBSM ${SOURCES})
 
-target_link_libraries(GBSM Logging common-misc cia state_machine dpm  minini linux-shm pid sleep startup gbsm_config m pigpio pthread rt)
+target_link_libraries(GBSM Logging common-misc cia state_machine dpm  minini linux-shm pid sleep gbsm_config m pigpio pthread rt)
 target_include_directories(GBSM PUBLIC "inc" inc/tmc4361a_conf inc/tmc5160_conf libs/TMC-API/helpers libs/TMC-API/TMC5160 libs/TMC-API/TMC4361A ${PROJECT_BINARY_DIR}/version ${gbsm_config_BINARY_DIR})
 
 
@@ -92,7 +103,6 @@ add_subdirectory("libs/gbsm_config")
 add_subdirectory("gclibs/common-misc")
 add_subdirectory("gclibs/bcm2835")
 add_subdirectory("gclibs/logging")
-add_subdirectory("gclibs/startup")
 add_subdirectory("gclibs/pid")
 add_subdirectory("gclibs/cia")
 add_subdirectory("gclibs/dpm")
@@ -106,3 +116,7 @@ add_subdirectory("gclibs/state_machine")
 if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
     message(FATAL_ERROR “GB: In-source builds not allowed! Create a build directory and run CMake from there.”)
 endif ()
+
+
+
+install(TARGETS GBSM DESTINATION bin CONFIGURATIONS Release)
